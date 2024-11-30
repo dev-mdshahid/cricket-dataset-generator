@@ -3,16 +3,20 @@ const path = require('path');
 
 function createMatchFeatureRow(matchData) {
   const info = matchData.info;
-  const innings = matchData.innings?.[0] || {};
+  const firstInnings = matchData.innings?.[0] || {};
+  const secondInnings = matchData.innings?.[1] || {};
 
   // Calculate first innings stats
   let totalRuns = 0;
   let totalWickets = 0;
   let totalExtras = 0;
   let boundaryCount = 0;
+  let firstInningsOvers = 0;
+  let firstInningsBalls = 0;
 
-  if (innings.overs) {
-    innings.overs.forEach((over) => {
+  if (firstInnings.overs) {
+    firstInnings.overs.forEach((over) => {
+      firstInningsBalls += over.deliveries.length;
       over.deliveries.forEach((delivery) => {
         totalRuns += delivery.runs.total;
         if (delivery.runs.batter === 4 || delivery.runs.batter === 6) {
@@ -24,14 +28,49 @@ function createMatchFeatureRow(matchData) {
             0
           );
         }
-        if (delivery.wicket) {
-          totalWickets++;
+        if (delivery.wickets && delivery.wickets.length > 0) {
+          totalWickets += delivery.wickets.length;
         }
       });
     });
+    // Calculate overs (e.g., 6.2 for 6 overs and 2 balls)
+    firstInningsOvers =
+      Math.floor(firstInningsBalls / 6) + (firstInningsBalls % 6) / 10;
   }
 
-  // Create feature object
+  // Calculate second innings stats
+  let secondInningsRuns = 0;
+  let secondInningsWickets = 0;
+  let secondInningsExtras = 0;
+  let secondInningsBoundaries = 0;
+  let secondInningsOvers = 0;
+  let secondInningsBalls = 0;
+
+  if (secondInnings.overs) {
+    secondInnings.overs.forEach((over) => {
+      secondInningsBalls += over.deliveries.length;
+      over.deliveries.forEach((delivery) => {
+        secondInningsRuns += delivery.runs.total;
+        if (delivery.runs.batter === 4 || delivery.runs.batter === 6) {
+          secondInningsBoundaries++;
+        }
+        if (delivery.extras) {
+          secondInningsExtras += Object.values(delivery.extras).reduce(
+            (a, b) => a + b,
+            0
+          );
+        }
+        if (delivery.wickets && delivery.wickets.length > 0) {
+          secondInningsWickets += delivery.wickets.length;
+        }
+      });
+    });
+    // Calculate overs (e.g., 6.2 for 6 overs and 2 balls)
+    secondInningsOvers =
+      Math.floor(secondInningsBalls / 6) + (secondInningsBalls % 6) / 10;
+  }
+
+  // Update features object with overs data
   const features = {
     match_type: info.match_type,
     venue: info.venue,
@@ -46,12 +85,18 @@ function createMatchFeatureRow(matchData) {
     first_innings_wickets: totalWickets,
     first_innings_extras: totalExtras,
     first_innings_boundaries: boundaryCount,
+    first_innings_overs: firstInningsOvers,
+    second_innings_runs: secondInningsRuns,
+    second_innings_wickets: secondInningsWickets,
+    second_innings_extras: secondInningsExtras,
+    second_innings_boundaries: secondInningsBoundaries,
+    second_innings_overs: secondInningsOvers,
     season: info.season,
     player_of_match: info.player_of_match?.[0] || '',
     result: info.outcome?.result || info.outcome?.winner || 'no result',
   };
 
-  // Convert to CSV row
+  // Update CSV header in processMatchFiles function
   const csvRow = Object.values(features)
     .map((value) => `"${value}"`)
     .join(',');
@@ -96,7 +141,7 @@ function processMatchFiles(directoryPath) {
 
     // Write results to CSV file
     const csvHeader =
-      'match_type,venue,city,toss_winner,toss_decision,team1,team2,overs_limit,balls_per_over,first_innings_runs,first_innings_wickets,first_innings_extras,first_innings_boundaries,season,player_of_the_match,result\n';
+      'match_type,venue,city,toss_winner,toss_decision,team1,team2,overs_limit,balls_per_over,first_innings_runs,first_innings_wickets,first_innings_extras,first_innings_boundaries,first_innings_overs,second_innings_runs,second_innings_wickets,second_innings_extras,second_innings_boundaries,second_innings_overs,season,player_of_the_match,result\n';
     const csvContent =
       csvHeader + allResults.map((result) => result.csvRow).join('\n');
     fs.writeFileSync('match_features.csv', csvContent);
