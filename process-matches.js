@@ -156,6 +156,5 @@ function processMatchFiles(directoryPath) {
   }
 }
 
-const directoryPath =
-  'C:/Users/mdsha/Downloads/Compressed/bangladesh_male_json';
+const directoryPath = 'C:\\Users\\mdsha\\Downloads\\Compressed\\all_json';
 processMatchFiles(directoryPath);
